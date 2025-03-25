@@ -1,8 +1,3 @@
-"""
-Health model operations for the fitness tracking application.
-Handles CRUD operations for health metrics data.
-"""
-
 import pandas as pd
 from db.connection import get_connection
 
@@ -72,36 +67,3 @@ class HealthModel:
             return True, "Health record deleted successfully!"
         except Exception as e:
             return False, f"Error deleting health record: {e}"
-
-    @staticmethod
-    def get_health_trend_data(user_id, metric):
-        db = get_connection()
-
-        # Map metric name to column name
-        column_mapping = {
-            "Heart Rate": "heartrate",
-            "VO2max": "VO2max",
-            "HR Variation": "HRvariation",
-            "Sleep Time": "sleeptime",
-            "Sleep Quality": "sleepQuality"
-        }
-
-        column = column_mapping.get(metric)
-        if not column:
-            return [], []
-
-        db.execute_query(f"""
-            SELECT date, {column}
-            FROM Health
-            WHERE userID = ?
-            ORDER BY date ASC
-        """, (user_id,))
-
-        records = db.fetchall()
-        if not records:
-            return [], []
-
-        dates = [record[0] for record in records]
-        values = [record[1] for record in records]
-
-        return dates, values
