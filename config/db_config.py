@@ -9,9 +9,3 @@ MYSQL_CONFIG = {
     'password': os.getenv('DB_PASSWORD', 'stupid_password'),
     'database': os.getenv('DB_NAME', 'stupid_db_name')
 }
-
-# SQLite configuration (fallback)
-SQLITE_DB_PATH = 'fitness_tracker.db'
-
-# Database type
-USE_MYSQL = True  # Set to False to use SQLite by default
