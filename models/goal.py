@@ -1,103 +1,67 @@
 import pandas as pd
-from db.connection import get_connection
+from db.connection import get_db_connection
 
+def get_all_goals():
+    """Get all goals"""
+    conn = get_db_connection()
+    df = pd.read_sql("SELECT * FROM Goals", conn)
+    conn.close()
+    return df
 
-class GoalModel:
-    @staticmethod
-    def get_all_goals():
-        db = get_connection()
-        db.execute_query("""
-            SELECT g.userID, u.fName || ' ' || u.lName as user, g.goalName, g.amount, g.metric, g.completed
-            FROM Goals g
-            JOIN Users u ON g.userID = u.userID
-            ORDER BY u.userID, g.goalName
-        """)
-        goals = db.fetchall()
+def get_goals_by_user(user_id):
+    """Get goals for a specific user"""
+    conn = get_db_connection()
+    df = pd.read_sql("SELECT * FROM Goals WHERE userID = ?",
+                    conn, params=(user_id,))
+    conn.close()
+    return df
 
-        if goals:
-            return pd.DataFrame(goals,
-                                columns=["User ID", "User", "Goal", "Amount",
-                                         "Metric", "Completed"])
-        return pd.DataFrame()
-
-    @staticmethod
-    def get_user_goals(user_id):
-        db = get_connection()
-        db.execute_query(
-            "SELECT goalName, amount, metric, completed FROM Goals WHERE userID = ?",
-            (user_id,)
+def add_goal(user_id, goal_name, amount, metric, completed):
+    """Add a new goal"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO Goals (userID, goalName, amount, metric, completed) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, goal_name, amount, metric, completed)
         )
-        return db.fetchall()
+        conn.commit()
+        result = {"success": True}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result
 
+def update_goal(user_id, goal_name, amount, metric, completed):
+    """Update an existing goal"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE Goals SET amount=?, metric=?, completed=? WHERE userID=? "
+            "AND goalName=?",
+            (amount, metric, completed, user_id, goal_name)
+        )
+        conn.commit()
+        result = {"success": True, "rows_affected": cursor.rowcount}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result
 
-    @staticmethod
-    def add_goal(user_id, goal_name, amount, metric, completed=False):
-        db = get_connection()
-        try:
-            db.execute_query(
-                "INSERT INTO Goals (userID, goalName, amount, metric, completed) VALUES (?, ?, ?, ?, ?)",
-                (user_id, goal_name, amount, metric, completed),
-                commit=True
-            )
-            return True, "Goal added successfully!"
-        except Exception as e:
-            return False, f"Error adding goal: {e}"
-
-    @staticmethod
-    def update_goal(user_id, goal_name, amount=None, metric=None,
-        completed=None):
-        """Update an existing goal."""
-        db = get_connection()
-        try:
-            # First check if the goal exists
-            db.execute_query(
-                "SELECT * FROM Goals WHERE userID = ? AND goalName = ?",
-                (user_id, goal_name)
-            )
-            goal = db.fetchone()
-            if not goal:
-                return False, f"Goal '{goal_name}' not found for this user."
-
-            # Build update query based on provided parameters
-            query_parts = []
-            params = []
-
-            if amount is not None:
-                query_parts.append("amount = ?")
-                params.append(amount)
-
-            if metric is not None:
-                query_parts.append("metric = ?")
-                params.append(metric)
-
-            if completed is not None:
-                query_parts.append("completed = ?")
-                params.append(completed)
-
-            if not query_parts:
-                return True, "No changes to update."
-
-            query = f"UPDATE Goals SET {', '.join(query_parts)} WHERE userID = ? AND goalName = ?"
-            params.extend([user_id, goal_name])
-
-            db.execute_query(query, params, commit=True)
-            return True, "Goal updated successfully!"
-        except Exception as e:
-            return False, f"Error updating goal: {e}"
-
-    @staticmethod
-    def mark_goal_completed(user_id, goal_name):
-        return GoalModel.update_goal(user_id, goal_name, completed=True)
-
-    @staticmethod
-    def delete_goal(user_id, goal_name):
-        db = get_connection()
-        try:
-            db.execute_query(
-                "DELETE FROM Goals WHERE userID = ? AND goalName = ?",
-                (user_id, goal_name),
-                commit=True
-            )
-            return True, "Goal deleted successfully!"
-        except Exception as e:
-            return False, f"Error deleting goal: {e}"
+def delete_goal(user_id, goal_name):
+    """Delete a goal"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM Goals WHERE userID=? AND goalName=?", (user_id, goal_name))
+        conn.commit()
+        result = {"success": True, "rows_affected": cursor.rowcount}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result

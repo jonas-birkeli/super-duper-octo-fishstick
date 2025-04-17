@@ -1,65 +1,73 @@
 import pandas as pd
-from db.connection import get_connection
+from db.connection import get_db_connection
 
+def get_all_users():
+    """Get all users from the database"""
+    conn = get_db_connection()
+    df = pd.read_sql("SELECT * FROM Users", conn)
+    conn.close()
+    return df
 
-class UserModel:
-    @staticmethod
-    def get_all_users():
-        db = get_connection()
-        db.execute_query("SELECT * FROM Users")
-        users = db.fetchall()
+def get_user_by_id(user_id):
+    """Get a specific user by ID"""
+    conn = get_db_connection()
+    df = pd.read_sql("SELECT * FROM Users WHERE userID = ?", conn, params=(user_id,))
+    conn.close()
+    return df
 
-        if users:
-            return pd.DataFrame(users,
-                                columns=["User ID", "First Name", "Last Name",
-                                         "Weight (kg)", "DOB", "Sex"])
-        return pd.DataFrame()
+def add_user(fname, lname, weight, dob, sex):
+    """Add a new user to the database"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO Users (fName, lName, weight, DOB, sex) VALUES (?, ?, ?, ?, ?)",
+            (fname, lname, weight, dob, sex)
+        )
+        conn.commit()
+        result = {"success": True, "user_id": cursor.lastrowid}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result
 
-    @staticmethod
-    def get_users_for_dropdown():
-        db = get_connection()
-        db.execute_query(
-            "SELECT userID, fName || ' ' || lName AS fullName FROM Users")
-        return {user[0]: user[1] for user in db.fetchall()}
+def update_user(user_id, fname, lname, weight, dob, sex):
+    """Update an existing user"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE Users SET fName=?, lName=?, weight=?, DOB=?, sex=? WHERE userID=?",
+            (fname, lname, weight, dob, sex, user_id)
+        )
+        conn.commit()
+        result = {"success": True, "rows_affected": cursor.rowcount}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result
 
-    @staticmethod
-    def get_user_by_id(user_id):
-        db = get_connection()
-        db.execute_query("SELECT * FROM Users WHERE userID = ?", (user_id,))
-        return db.fetchone()
+def delete_user(user_id):
+    """Delete a user from the database"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM Users WHERE userID=?", (user_id,))
+        conn.commit()
+        result = {"success": True, "rows_affected": cursor.rowcount}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result
 
-    @staticmethod
-    def add_user(fname, lname, weight, dob, sex):
-        db = get_connection()
-        try:
-            db.execute_query(
-                "INSERT INTO Users (fName, lName, weight, DOB, sex) VALUES (?, ?, ?, ?, ?)",
-                (fname, lname, weight, dob, sex),
-                commit=True
-            )
-            return True, "User added successfully!"
-        except Exception as e:
-            return False, f"Error adding user: {e}"
-
-    @staticmethod
-    def update_user(user_id, fname, lname, weight, dob, sex):
-        db = get_connection()
-        try:
-            db.execute_query(
-                "UPDATE Users SET fName = ?, lName = ?, weight = ?, DOB = ?, sex = ? WHERE userID = ?",
-                (fname, lname, weight, dob, sex, user_id),
-                commit=True
-            )
-            return True, "User updated successfully!"
-        except Exception as e:
-            return False, f"Error updating user: {e}"
-
-    @staticmethod
-    def delete_user(user_id):
-        db = get_connection()
-        try:
-            db.execute_query("DELETE FROM Users WHERE userID = ?", (user_id,),
-                             commit=True)
-            return True, "User deleted successfully!"
-        except Exception as e:
-            return False, f"Error deleting user: {e}"
+def get_user_ids():
+    """Get all user IDs for dropdowns"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT userID FROM Users")
+    user_ids = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return user_ids

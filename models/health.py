@@ -1,69 +1,67 @@
 import pandas as pd
-from db.connection import get_connection
+from db.connection import get_db_connection
 
+def get_all_health_records():
+    """Get all health records"""
+    conn = get_db_connection()
+    df = pd.read_sql("SELECT * FROM Health", conn)
+    conn.close()
+    return df
 
-class HealthModel:
-    @staticmethod
-    def get_user_health_records(user_id):
-        db = get_connection()
-        db.execute_query("""
-            SELECT date, heartrate, VO2max, HRvariation, sleeptime, sleepQuality
-            FROM Health
-            WHERE userID = ?
-            ORDER BY date DESC
-        """, (user_id,))
-        records = db.fetchall()
+def get_health_by_user(user_id):
+    """Get health records for a specific user"""
+    conn = get_db_connection()
+    df = pd.read_sql("SELECT * FROM Health WHERE userID = ? ORDER BY date DESC",
+                    conn, params=(user_id,))
+    conn.close()
+    return df
 
-        if records:
-            return pd.DataFrame(records,
-                                columns=["Date", "Heart Rate", "VO2max",
-                                         "HR Variation", "Sleep Time",
-                                         "Sleep Quality"])
-        return pd.DataFrame()
+def add_health_record(user_id, date, heartrate, vo2max, hr_variation, sleeptime):
+    """Add a new health record"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO Health (userID, date, heartrate, VO2max, "
+            "HRvariation, sleeptime) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, date, heartrate, vo2max, hr_variation, sleeptime)
+        )
+        conn.commit()
+        result = {"success": True}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result
 
-    @staticmethod
-    def add_health_record(user_id, record_date, heart_rate, vo2max,
-        hr_variation, sleep_time, sleep_quality):
-        db = get_connection()
-        try:
-            db.execute_query(
-                """INSERT INTO Health 
-                   (userID, date, heartrate, VO2max, HRvariation, sleeptime, sleepQuality) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (user_id, record_date, heart_rate, vo2max, hr_variation,
-                 sleep_time, sleep_quality),
-                commit=True
-            )
-            return True, "Health record added successfully!"
-        except Exception as e:
-            return False, f"Error adding health record: {e}"
+def update_health_record(user_id, date, heartrate, vo2max, hr_variation, sleeptime):
+    """Update an existing health record"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE Health SET heartrate=?, VO2max=?, HRvariation=?, "
+            "sleeptime=? WHERE userID=? AND date=?",
+            (heartrate, vo2max, hr_variation, sleeptime, user_id, date)
+        )
+        conn.commit()
+        result = {"success": True, "rows_affected": cursor.rowcount}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result
 
-    @staticmethod
-    def update_health_record(user_id, record_date, heart_rate, vo2max,
-        hr_variation, sleep_time, sleep_quality):
-        db = get_connection()
-        try:
-            db.execute_query(
-                """UPDATE Health 
-                   SET heartrate = ?, VO2max = ?, HRvariation = ?, sleeptime = ?, sleepQuality = ? 
-                   WHERE userID = ? AND date = ?""",
-                (heart_rate, vo2max, hr_variation, sleep_time, sleep_quality,
-                 user_id, record_date),
-                commit=True
-            )
-            return True, "Health record updated successfully!"
-        except Exception as e:
-            return False, f"Error updating health record: {e}"
-
-    @staticmethod
-    def delete_health_record(user_id, record_date):
-        db = get_connection()
-        try:
-            db.execute_query(
-                "DELETE FROM Health WHERE userID = ? AND date = ?",
-                (user_id, record_date),
-                commit=True
-            )
-            return True, "Health record deleted successfully!"
-        except Exception as e:
-            return False, f"Error deleting health record: {e}"
+def delete_health_record(user_id, date):
+    """Delete a health record"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM Health WHERE userID=? AND date=?", (user_id, date))
+        conn.commit()
+        result = {"success": True, "rows_affected": cursor.rowcount}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+    return result
