@@ -1,171 +1,119 @@
-import streamlit as st
-from connection import get_connection
+def create_tables(cursor):
+    """Create all database tables if they don't exist"""
+    # Kopierte bare det fra discord
+    cursor.executescript('''
+        CREATE TABLE IF NOT EXISTS Users (
+          userID INTEGER PRIMARY KEY AUTOINCREMENT,
+          fName VARCHAR(32) NOT NULL,
+          lName VARCHAR(32) NOT NULL,
+          weight DECIMAL(4,1) CHECK (weight > 0),
+          DOB DATE,
+          sex CHAR(1),
+          CHECK (sex IN ('M', 'F'))
+        );
+        CREATE TABLE IF NOT EXISTS Health (
+          userID INT NOT NULL,
+          date DATE NOT NULL,
+          heartrate FLOAT,
+          VO2max FLOAT,
+          HRvariation INT,
+          sleeptime FLOAT,
+          PRIMARY KEY (userID, date),
+          FOREIGN KEY (userID) REFERENCES Users(userID) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS Goals (
+          userID INT NOT NULL,
+          goalName VARCHAR(32) NOT NULL,
+          amount DECIMAL(8,2) NOT NULL,
+          metric VARCHAR(8) NOT NULL,
+          completed TINYINT NOT NULL,
+          PRIMARY KEY (userID, goalName),
+          FOREIGN KEY (userID) REFERENCES Users(userID) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS Workout (
+          workoutID INTEGER PRIMARY KEY AUTOINCREMENT,
+          userID INT NOT NULL,
+          startTime DATETIME NOT NULL,
+          endTime DATETIME NOT NULL,
+          maxHR INT,
+          workoutType VARCHAR(20) NOT NULL,
+          CHECK (endTime > startTime),
+          CHECK (workoutType IN ('Run', 'Weightlift')),
+          FOREIGN KEY(userID) REFERENCES Users(userID) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS Run (
+          workoutID INT NOT NULL,
+          intervalNr INT NOT NULL,
+          distance DECIMAL(6,2) NOT NULL,
+          pace CHAR(5) NOT NULL,
+          incline DECIMAL(3,1),
+          PRIMARY KEY (workoutID, intervalNr),
+          FOREIGN KEY (workoutID) REFERENCES Workout(workoutID) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS Exercise (
+          exerciseID INTEGER PRIMARY KEY AUTOINCREMENT,
+          name VARCHAR(32) NOT NULL,
+          muscleGroup VARCHAR(32)
+        );
+        CREATE TABLE IF NOT EXISTS Weightlift (
+          workoutID INT NOT NULL,
+          exerciseID INT NOT NULL,
+          setNr INT NOT NULL CHECK (setNr > 0),
+          reps INT NOT NULL CHECK (reps > 0),
+          weight DECIMAL(4,1) CHECK (weight >= 0),
+          PRIMARY KEY(workoutID, exerciseID, setNr),
+          FOREIGN KEY(workoutID) REFERENCES Workout(workoutID) ON DELETE CASCADE,
+          FOREIGN KEY(exerciseID) REFERENCES Exercise(exerciseID) ON DELETE CASCADE
+        );
 
+        -- Create views
+        DROP VIEW IF EXISTS UserProgressOverview;
+        CREATE VIEW UserProgressOverview AS
+        SELECT 
+            u.userID,
+            u.fName,
+            u.lName,
+            COUNT(DISTINCT w.workoutID) AS total_workouts,
+            SUM(strftime('%s', w.endTime) - strftime('%s', w.startTime)) / 60 AS total_workout_minutes,
+            AVG(h.VO2max) AS avg_VO2max,
+            AVG(h.HRvariation) AS avg_HRV,
+            AVG(h.sleeptime) AS avg_sleep,
+            COUNT(DISTINCT CASE WHEN g.completed = 1 THEN g.goalName END) AS completed_goals,
+            COUNT(DISTINCT CASE WHEN g.completed = 0 THEN g.goalName END) AS pending_goals
+        FROM 
+            Users u
+        LEFT JOIN 
+            Workout w ON u.userID = w.userID
+        LEFT JOIN 
+            Health h ON u.userID = h.userID
+        LEFT JOIN 
+            Goals g ON u.userID = g.userID
+        GROUP BY 
+            u.userID, u.fName, u.lName;
 
-def create_tables():
-    db = get_connection()
-
-    # Users table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS Users (
-        userID INTEGER PRIMARY KEY AUTO_INCREMENT,
-        fName VARCHAR(32) NOT NULL,
-        lName VARCHAR(32) NOT NULL,
-        weight FLOAT,
-        DOB DATE,
-        sex CHAR(1) CHECK (sex IN ('M', 'F'))
-    )
-    ''', commit=True)
-
-    # Health table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS Health (
-        userID INTEGER,
-        date DATE,
-        heartrate FLOAT,
-        VO2max FLOAT,
-        HRvariation INTEGER,
-        sleeptime FLOAT,
-        sleepQuality INTEGER,
-        PRIMARY KEY (userID, date),
-        FOREIGN KEY (userID) REFERENCES Users(userID)
-    )
-    ''', commit=True)
-
-    # Goals table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS Goals (
-        userID INTEGER,
-        goalName VARCHAR(32),
-        amount FLOAT NOT NULL,
-        metric VARCHAR(8) NOT NULL,
-        completed BOOLEAN DEFAULT 0,
-        PRIMARY KEY (userID, goalName),
-        FOREIGN KEY (userID) REFERENCES Users(userID)
-    )
-    ''', commit=True)
-
-    # Workout table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS Workout (
-        workoutID INTEGER PRIMARY KEY AUTO_INCREMENT,
-        userID INTEGER NOT NULL,
-        starttime DATETIME NOT NULL,
-        endtime DATETIME NOT NULL,
-        maxHR INTEGER,
-        workoutType VARCHAR(20) CHECK (workoutType IN ('Run', 'Weightlift')),
-        FOREIGN KEY (userID) REFERENCES Users(userID)
-    )
-    ''', commit=True)
-
-    # Run table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS Run (
-        workoutID INTEGER PRIMARY KEY,
-        distance FLOAT,
-        avgPace FLOAT,
-        FOREIGN KEY (workoutID) REFERENCES Workout(workoutID)
-    )
-    ''', commit=True)
-
-    # Intervals table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS Intervals (
-        workoutID INTEGER,
-        intervalNr INTEGER,
-        distance FLOAT,
-        pace FLOAT,
-        incline FLOAT,
-        PRIMARY KEY (workoutID, intervalNr),
-        FOREIGN KEY (workoutID) REFERENCES Run(workoutID)
-    )
-    ''', commit=True)
-
-    # Weightlift table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS Weightlift (
-        workoutID INTEGER PRIMARY KEY,
-        activeMinutes INTEGER,
-        restMinutes INTEGER,
-        FOREIGN KEY (workoutID) REFERENCES Workout(workoutID)
-    )
-    ''', commit=True)
-
-    # ExerciseType table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS ExerciseType (
-        exerciseID INTEGER PRIMARY KEY AUTO_INCREMENT,
-        name VARCHAR(32) NOT NULL,
-        musclegroup VARCHAR(32)
-    )
-    ''', commit=True)
-
-    # Exercise table
-    db.execute_query('''
-    CREATE TABLE IF NOT EXISTS Exercise (
-        workoutID INTEGER,
-        exerciseID INTEGER,
-        setNr INTEGER,
-        reps INTEGER,
-        weight FLOAT,
-        PRIMARY KEY (workoutID, exerciseID, setNr),
-        FOREIGN KEY (workoutID) REFERENCES Weightlift(workoutID),
-        FOREIGN KEY (exerciseID) REFERENCES ExerciseType(exerciseID)
-    )
-    ''', commit=True)
-
-
-def insert_sample_data():
-    db = get_connection()
-
-    # Check if we already have sample data
-    db.execute_query("SELECT COUNT(*) FROM Users")
-    if db.fetchone()[0] > 0:
-        return
-
-    exercise_types = [
-        (1, "Bench Press", "Chest"),
-        (2, "Squat", "Legs"),
-        (3, "Deadlift", "Back"),
-        (4, "Shoulder Press", "Shoulders"),
-        (5, "Bicep Curl", "Arms")
-    ]
-
-    for ex_type in exercise_types:
-        db.execute_query(
-            "INSERT INTO ExerciseType (exerciseID, name, musclegroup) VALUES (?, ?, ?)",
-            ex_type,
-            commit=True
-        )
-
-    users = [
-        (1, "Johan", "Bruh", 70.0, "2000-01-01", "M"),
-        (2, "Jonas", "BruhBruh", 70.0, "2000-01-01", "M")
-        (3, "Benny", "BruhBruhBruh", 70.0, "2000-01-01", "F")
-        (4, "Torbjørn", "BruhBruhBruhBruh", 70.0, "2000-01-01", "M")
-    ]
-
-    for user in users:
-        db.execute_query(
-            "INSERT INTO Users (userID, fName, lName, weight, DOB, sex) VALUES (?, ?, ?, ?, ?, ?)",
-            user,
-            commit=True
-        )
-
-    goals = [
-        (1, "Weight Loss", 10.0, "kg", 0),
-        (1, "Run Distance", 5.0, "km", 1),
-        (2, "Strength", 50.0, "kg", 0)
-    ]
-
-    for goal in goals:
-        db.execute_query(
-            "INSERT INTO Goals (userID, goalName, amount, metric, completed) VALUES (?, ?, ?, ?, ?)",
-            goal,
-            commit=True
-        )
-
-
-def initialize_database():
-    create_tables()
-    insert_sample_data()
+        DROP VIEW IF EXISTS ExerciseEffectivenessAnalysis;
+        CREATE VIEW ExerciseEffectivenessAnalysis AS
+        SELECT 
+            e.exerciseID,
+            e.name AS exercise_name,
+            e.muscleGroup,
+            COUNT(DISTINCT w.workoutID) AS times_performed,
+            COUNT(DISTINCT w.userID) AS users_performed,
+            AVG(wl.weight) AS avg_weight,
+            AVG(wl.reps) AS avg_reps,
+            (
+                SELECT COUNT(*)
+                FROM Goals g
+                WHERE g.userID = w.userID
+                  AND g.completed = 1
+                  AND g.goalName = 'Lift Weights'
+            ) AS related_goals_completed
+        FROM 
+            Exercise e
+        JOIN 
+            Weightlift wl ON e.exerciseID = wl.exerciseID
+        JOIN 
+            Workout w ON wl.workoutID = w.workoutID
+        GROUP BY 
+            e.exerciseID, e.name, e.muscleGroup;
+    ''')
