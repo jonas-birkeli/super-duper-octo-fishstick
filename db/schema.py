@@ -1,6 +1,5 @@
 def create_tables(cursor):
     """Create all database tables if they don't exist"""
-    # Kopierte bare det fra discord
     cursor.executescript('''
         CREATE TABLE IF NOT EXISTS Users (
           userID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +73,7 @@ def create_tables(cursor):
             u.fName,
             u.lName,
             COUNT(DISTINCT w.workoutID) AS total_workouts,
-            SUM(strftime('%s', w.endTime) - strftime('%s', w.startTime)) / 60 AS total_workout_minutes,
+            SUM(CASE WHEN w.workoutID IS NOT NULL THEN (JULIANDAY(w.endTime) - JULIANDAY(w.startTime)) * 24 * 60 ELSE 0 END) AS total_workout_minutes,
             AVG(h.VO2max) AS avg_VO2max,
             AVG(h.HRvariation) AS avg_HRV,
             AVG(h.sleeptime) AS avg_sleep,
@@ -97,23 +96,19 @@ def create_tables(cursor):
             e.exerciseID,
             e.name AS exercise_name,
             e.muscleGroup,
-            COUNT(DISTINCT w.workoutID) AS times_performed,
+            COUNT(DISTINCT wl.workoutID) AS times_performed,
             COUNT(DISTINCT w.userID) AS users_performed,
             AVG(wl.weight) AS avg_weight,
             AVG(wl.reps) AS avg_reps,
-            (
-                SELECT COUNT(*)
-                FROM Goals g
-                WHERE g.userID = w.userID
-                  AND g.completed = 1
-                  AND g.goalName = 'Lift Weights'
-            ) AS related_goals_completed
+            SUM(CASE WHEN g.completed = 1 AND g.goalName = 'Lift Weights' THEN 1 ELSE 0 END) AS related_goals_completed
         FROM 
             Exercise e
-        JOIN 
+        LEFT JOIN 
             Weightlift wl ON e.exerciseID = wl.exerciseID
-        JOIN 
+        LEFT JOIN 
             Workout w ON wl.workoutID = w.workoutID
+        LEFT JOIN
+            Goals g ON w.userID = g.userID
         GROUP BY 
             e.exerciseID, e.name, e.muscleGroup;
     ''')
