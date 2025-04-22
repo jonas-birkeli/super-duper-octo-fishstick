@@ -30,7 +30,7 @@ def health_page():
                 )
                 if result["success"]:
                     st.success("Health record added successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"Error adding health record: {result['error']}")
     else:
@@ -54,7 +54,7 @@ def health_page():
                 result = delete_health_record(int(user_id), date)
                 if result["success"]:
                     st.success("Deleted health record successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"Error deleting health record: {result['error']}")
     else:

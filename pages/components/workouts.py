@@ -142,7 +142,7 @@ def workouts_page():
 
                     if all_intervals_success:
                         st.success("Running workout added successfully!")
-                        st.experimental_rerun()
+                        st.rerun()
                 else:
                     st.error(f"Error adding workout: {result['error']}")
 
@@ -267,7 +267,7 @@ def workouts_page():
                     if all_sets_success:
                         st.success(
                             "Weightlifting workout added successfully!")
-                        st.experimental_rerun()
+                        st.rerun()
                 else:
                     st.error(f"Error adding workout: {result['error']}")
 
@@ -288,7 +288,7 @@ def workouts_page():
                 result = delete_workout(workout_id)
                 if result["success"]:
                     st.success("Workout deleted successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"Error deleting workout: {result['error']}")
     else:

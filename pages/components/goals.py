@@ -81,7 +81,7 @@ def goals_page():
                                   1 if completed else 0)
                 if result["success"]:
                     st.success(f"Goal added successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"Error adding goal: {result['error']}")
 
@@ -144,7 +144,7 @@ def goals_page():
                                          1 if update_completed else 0)
                     if result["success"]:
                         st.success(f"Goal updated successfully!")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error(f"Error updating goal: {result['error']}")
 
@@ -174,6 +174,6 @@ def goals_page():
                     result = delete_goal(user_id, goal_name)
                     if result["success"]:
                         st.success("Goal deleted successfully!")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error(f"Error deleting goal: {result['error']}")

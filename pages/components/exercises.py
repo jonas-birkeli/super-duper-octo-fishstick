@@ -36,7 +36,7 @@ def exercises_page():
                 result = add_exercise(name, muscle_group)
                 if result["success"]:
                     st.success(f"Exercise '{name}' added successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"Error adding exercise: {result['error']}")
 
@@ -83,7 +83,7 @@ def exercises_page():
                                                  update_muscle_group)
                         if result["success"]:
                             st.success("Exercise updated successfully!")
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.error(
                                 f"Error updating exercise: {result['error']}")
@@ -107,6 +107,6 @@ def exercises_page():
                 result = delete_exercise(exercise_id)
                 if result["success"]:
                     st.success("Exercise deleted successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"Error deleting exercise: {result['error']}")

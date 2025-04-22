@@ -28,7 +28,7 @@ def users_page():
             )
             if result["success"]:
                 st.success("User added successfully!")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error(f"Error adding user: {result['error']}")
 
@@ -77,7 +77,7 @@ def users_page():
                     )
                     if result["success"]:
                         st.success("User updated successfully!")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error(f"Error updating user: {result['error']}")
 
@@ -97,6 +97,6 @@ def users_page():
                 result = delete_user(user_id)
                 if result["success"]:
                     st.success("User deleted successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"Error deleting user: {result['error']}")
