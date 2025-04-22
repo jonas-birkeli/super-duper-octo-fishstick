@@ -11,8 +11,8 @@ Things you can do:
 - Manage users (add, update, delete)
 - Record health metrics
 - Track workouts
-- View analytics and visualizations
-- Create
+- Manage goals
+- Compare users to users
 
 By:
 Benjamin, Johan, Jonas, Sofiya and Torbjørn
